@@ -1,4 +1,4 @@
-hi!
+Hi!
 This is my final project to automate testing using python and selenium
 
 I use:
