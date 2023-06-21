@@ -28,27 +28,34 @@ class BasePage:
         return logger
 
     def open(self):
+        self.logger.info(f"Opening URL: {self.url}")
         self.browser.get(self.url)
 
     def is_element_present(self, how, what):
+        self.logger.info(f"Waiting for element '{how}:{what}' is present on the page")
         try:
             self.browser.find_element(how, what)
         except NoSuchElementException:
+            self.logger.error(f"Element '{how}:{what}' is not present on the page")
             return False
         return True
 
     def is_not_element_present(self, how, what, timeout=4):
+        self.logger.info(f"Waiting for element '{how}:{what}' is not present on the page")
         try:
             WebDriverWait(self.browser, timeout).until(EC.presence_of_element_located((how, what)))
         except TimeoutException:
             return True
+        self.logger.error(f"Element '{how}:{what}' is present on the page")
         return False
 
     def is_disappeared(self, how, what, timeout=4):
+        self.logger.info(f"Waiting for element '{how}:{what}' is disappeared on the page")
         try:
             WebDriverWait(self.browser, timeout, 1, TimeoutException). \
                 until_not(EC.presence_of_element_located((how, what)))
         except TimeoutException:
+            self.logger.error(f"Element '{how}:{what}' is not disappeared on the page")
             return False
         return True
 
