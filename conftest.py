@@ -1,3 +1,4 @@
+import logging
 import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -31,5 +32,8 @@ def browser(request):
         browser.quit()
 
     request.addfinalizer(finalizer)
+
+    browser.log_level = logging.DEBUG
+    browser.test_name = request.node.name
 
     return browser
