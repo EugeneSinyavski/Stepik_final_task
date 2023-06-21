@@ -1,11 +1,12 @@
-from selenium.common.exceptions import NoSuchElementException
-from selenium.common.exceptions import NoAlertPresentException
-from selenium.common.exceptions import TimeoutException
+import logging
+import math
+import os
+
+from selenium.common.exceptions import NoSuchElementException, NoAlertPresentException, TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import math
-from .locators import BasePageLocators
-from .locators import BasketPageLocators
+
+from .locators import BasePageLocators, BasketPageLocators
 
 
 class BasePage:
@@ -13,29 +14,48 @@ class BasePage:
         self.browser = browser
         self.url = url
         self.browser.implicitly_wait(timeout)
+        self.logger = self.__logger_init()
+
+    def __logger_init(self):
+        logger = logging.getLogger(type(self).__name__)
+        os.makedirs("logs", exist_ok=True)
+        file = logging.FileHandler(f"logs/{self.browser.test_name}.log")
+        file.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s"))
+        if logger.hasHandlers():
+            logger.handlers.clear()
+        logger.addHandler(file)
+        logger.setLevel(self.browser.log_level)
+        return logger
 
     def open(self):
+        self.logger.info(f"Opening URL: {self.url}")
         self.browser.get(self.url)
 
     def is_element_present(self, how, what):
+        self.logger.info(f"Waiting for element '{how}:{what}' is present on the page")
         try:
             self.browser.find_element(how, what)
         except NoSuchElementException:
+            self.logger.error(f"Element '{how}:{what}' is not present on the page")
             return False
         return True
 
     def is_not_element_present(self, how, what, timeout=4):
+        self.logger.info(f"Waiting for element '{how}:{what}' is not present on the page")
         try:
             WebDriverWait(self.browser, timeout).until(EC.presence_of_element_located((how, what)))
         except TimeoutException:
             return True
+        self.logger.error(f"Element '{how}:{what}' is present on the page")
         return False
 
     def is_disappeared(self, how, what, timeout=4):
+        self.logger.info(f"Waiting for element '{how}:{what}' is disappeared on the page")
         try:
             WebDriverWait(self.browser, timeout, 1, TimeoutException). \
                 until_not(EC.presence_of_element_located((how, what)))
         except TimeoutException:
+            self.logger.error(f"Element '{how}:{what}' is not disappeared on the page")
             return False
         return True
 
