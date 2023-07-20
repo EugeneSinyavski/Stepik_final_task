@@ -1,7 +1,9 @@
 import logging
 import math
 import os
+import re
 
+import allure
 from selenium.common.exceptions import NoSuchElementException, NoAlertPresentException, TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -19,7 +21,8 @@ class BasePage:
     def __logger_init(self):
         logger = logging.getLogger(type(self).__name__)
         os.makedirs("logs", exist_ok=True)
-        file = logging.FileHandler(f"logs/{self.browser.test_name}.log")
+        clean_logname = self.clean_test_name_for_logging(self.browser.test_name)
+        file = logging.FileHandler(f"logs/{clean_logname}.log")
         file.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s"))
         if logger.hasHandlers():
             logger.handlers.clear()
@@ -28,51 +31,65 @@ class BasePage:
         return logger
 
     def open(self):
-        self.logger.info(f"Opening URL: {self.url}")
-        self.browser.get(self.url)
+        with allure.step(f"Open URL: {self.url}"):
+            self.logger.info(f"Opening URL: {self.url}")
+            self.browser.get(self.url)
 
     def is_element_present(self, how, what):
-        self.logger.info(f"Waiting for element '{how}:{what}' is present on the page")
-        try:
-            self.browser.find_element(how, what)
-        except NoSuchElementException:
-            self.logger.error(f"Element '{how}:{what}' is not present on the page")
-            return False
-        return True
+        with allure.step(f"Checking if element '{how}:{what}' is not present on the page"):
+            self.logger.info(f"Waiting for element '{how}:{what}' is present on the page")
+            try:
+                self.browser.find_element(how, what)
+            except NoSuchElementException:
+                self.logger.error(f"Element '{how}:{what}' is not present on the page")
+                return False
+            return True
 
     def is_not_element_present(self, how, what, timeout=4):
-        self.logger.info(f"Waiting for element '{how}:{what}' is not present on the page")
-        try:
-            WebDriverWait(self.browser, timeout).until(EC.presence_of_element_located((how, what)))
-        except TimeoutException:
-            return True
-        self.logger.error(f"Element '{how}:{what}' is present on the page")
-        return False
+        with allure.step(f"Checking if element '{how}:{what}' is not present on the page"):
+            self.logger.info(f"Waiting for element '{how}:{what}' is not present on the page")
+            try:
+                WebDriverWait(self.browser, timeout).until(EC.presence_of_element_located((how, what)))
+            except TimeoutException:
+                return True
+            self.logger.error(f"Element '{how}:{what}' is present on the page")
+            return False
 
     def is_disappeared(self, how, what, timeout=4):
-        self.logger.info(f"Waiting for element '{how}:{what}' is disappeared on the page")
-        try:
-            WebDriverWait(self.browser, timeout, 1, TimeoutException). \
-                until_not(EC.presence_of_element_located((how, what)))
-        except TimeoutException:
-            self.logger.error(f"Element '{how}:{what}' is not disappeared on the page")
-            return False
-        return True
+        with allure.step(f"Checking if element '{how}:{what}' is disappeared on the page"):
+            self.logger.info(f"Waiting for element '{how}:{what}' is disappeared on the page")
+            try:
+                WebDriverWait(self.browser, timeout, 1, TimeoutException). \
+                    until_not(EC.presence_of_element_located((how, what)))
+            except TimeoutException:
+                self.logger.error(f"Element '{how}:{what}' is not disappeared on the page")
+                return False
+            return True
 
+    @allure.step("Going to the basket page")
     def go_to_basket_page(self):
         view_basket = self.browser.find_element(*BasketPageLocators.VIEW_BASKET)
         view_basket.click()
 
+    @allure.step("Going to the login page")
     def go_to_login_page(self):
         link = self.browser.find_element(*BasePageLocators.LOGIN_LINK)
         link.click()
 
+    @allure.step("Checking if user is authorized")
     def should_be_authorized_user(self):
         assert self.is_element_present(*BasePageLocators.USER_ICON), "User icon is not presented," \
                                                                      " probably unauthorised user"
 
+    @allure.step("Checking if login link is present")
     def should_be_login_link(self):
         assert self.is_element_present(*BasePageLocators.LOGIN_LINK), "Login link is not presented"
+
+    @staticmethod
+    def clean_test_name_for_logging(test_name):
+        pattern = r'[^\w\-]'
+        clean_name = re.sub(pattern, '_', test_name)
+        return clean_name
 
     def solve_quiz_and_get_code(self):
         alert = self.browser.switch_to.alert
